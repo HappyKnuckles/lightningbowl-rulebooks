@@ -42,7 +42,9 @@ for (const source of sources) {
     if (!ok || fewTitles || args.includes('--lines')) {
       // what the text looks like, to write heading patterns for it (short and only the first pages)
       const first = structure.rules[Math.min(3, structure.rules.length - 1)]?.page ?? 1;
-      for (const page of [first, first + 1]) {
+      // LINES=rulebook-id:10,11 picks the pages
+      const picked = process.env.LINES?.startsWith(`${source.id}:`) ? process.env.LINES.split(':')[1]!.split(',').map(Number) : null;
+      for (const page of picked ?? [first, first + 1]) {
         const lines = content.pages[page - 1] ?? [];
         out.push(`-- page ${page}`, ...lines.slice(0, 50).map((l) => `${l.size} ${l.left}-${l.right} ${l.text.slice(0, 60)}`));
       }

@@ -92,7 +92,7 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
 
   pages.forEach((lines, pageIndex) => {
     const column = columnOf(lines);
-    const onPage: (Candidate & { toc: boolean })[] = [];
+    const onPage: (Candidate & { toc: boolean; leader: boolean })[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
       if (line.size < bodySize - 0.5) continue; // smaller than the body text: footnotes, footers
@@ -105,14 +105,15 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
       if (match.title && !NUMBER_ONLY.test(line.text) && next && (/^\p{Ll}/u.test(next.text) || fillsColumn(line, column))) match.title = null;
       // some rulebooks print the heading above the number: "Downward Average Adjustments" / "Rule 4e. Relief of …"
       const previous = lines[i - 1];
-      if (!match.title && previous && previous.size > bodySize * 1.05 && !matchHeading(previous.text, patterns)) match.title = headingTitle(previous.text);
+      if (!match.title && previous && previous.size >= bodySize + 0.3 && !matchHeading(previous.text, patterns)) match.title = headingTitle(previous.text);
       onPage.push({ ...match, page: pageIndex + 1, line: i });
     }
     // a table of contents: mostly entries ending in page numbers, or (without page numbers) almost only headings
     const tocEntries = onPage.filter((c) => c.toc).length;
     if (tocEntries >= 3 && tocEntries * 2 >= onPage.length) return;
     if (onPage.length >= 8 && onPage.length >= lines.length * 0.7) return;
-    found.push(...onPage.filter((c) => !c.toc).map(({ toc: _, ...candidate }) => candidate));
+    // elsewhere only entries with leader dots are contents lines; a title may well end in a number
+    found.push(...onPage.filter((c) => !c.leader).map(({ toc: _, leader: __, ...candidate }) => candidate));
   });
 
   // a table of contents without page numbers: a page whose headings mostly come again later
@@ -145,17 +146,18 @@ export function matchHeading(
   text: string,
   patterns: HeadingPattern[],
   larger = true,
-): { number: string; title: string | null; level: number; toc: boolean } | null {
+): { number: string; title: string | null; level: number; toc: boolean; leader: boolean } | null {
   for (const { pattern, level, larger: needsLarger } of patterns) {
     if (needsLarger && !larger) continue;
     const groups = pattern.exec(text)?.groups;
     if (!groups?.number || groups.title === undefined) continue;
     const number = groups.number.replace(/\s+/g, ' ').trim();
     let title = groups.title.trim();
-    const toc = LEADER_AND_PAGE.test(title) || TRAILING_PAGE.test(title);
+    const leader = LEADER_AND_PAGE.test(title);
+    const toc = leader || TRAILING_PAGE.test(title);
     title = title.replace(LEADER_AND_PAGE, '').replace(/^[:.–—-]\s*/, '').trim();
     if (!title || !/\p{L}/u.test(title)) continue;
-    return { number, title: headingTitle(title), level: typeof level === 'function' ? level(number) : level, toc };
+    return { number, title: headingTitle(title), level: typeof level === 'function' ? level(number) : level, toc, leader };
   }
   return null;
 }
@@ -180,7 +182,9 @@ function isHeading(text: string): boolean {
 /** Bookmarks as candidates, placed on the line of their page where the heading is printed. */
 function fromOutline(outline: OutlineEntry[], pages: Line[][], patterns: HeadingPattern[]): Candidate[] {
   const candidates = outline.flatMap((entry) => {
-    const heading = matchHeading(entry.title, patterns);
+    const heading = NUMBER_ONLY.test(entry.title)
+      ? { number: entry.title.replace(/\s+/g, ' ').trim(), title: null }
+      : matchHeading(entry.title, patterns);
     // a bookmark on a sentence (some PDFs bookmark body text) is no heading, nor is the table of contents
     if (!heading && (!headingTitle(entry.title) || NOT_A_SECTION.test(entry.title))) return [];
     const page = entry.page!;
@@ -196,7 +200,7 @@ function fromOutline(outline: OutlineEntry[], pages: Line[][], patterns: Heading
   return candidates.filter((candidate, i) => {
     const next = candidates[i + 1];
     const same = next && candidate.number && next.number && ruleKey(candidate.number) === ruleKey(next.number);
-    if (same && (!candidate.title || candidate.title.length <= next.title!.length)) {
+    if (same && (!candidate.title || candidate.title.length <= (next.title?.length ?? 0))) {
       next.level = candidate.level;
       return false;
     }
@@ -300,9 +304,13 @@ function columnOf(lines: Line[]): { left: number; right: number } | null {
   return { left: lefts[Math.floor(lefts.length * 0.1)]!, right: rights[Math.floor(rights.length * 0.9)]! };
 }
 
+/** Below this width (in PDF units, an A4 page is 595 wide) a line is short whatever the column. */
+const MIN_FULL_LINE = 250;
+
 function fillsColumn(line: Line, column: { left: number; right: number } | null): boolean {
   if (!column || line.right === undefined) return false;
-  return line.right - column.left >= (column.right - column.left) * 0.9;
+  const width = line.right - column.left;
+  return width >= MIN_FULL_LINE && width >= (column.right - column.left) * 0.9;
 }
 
 function medianSize(pages: Line[][]): number {
