@@ -1,10 +1,9 @@
 import type { ApiRequest, ApiResponse, Handler } from './http.js';
-import { BadRequestError } from './schemas.js';
+import { BadRequestError, NotFoundError } from './schemas.js';
 
-/** JSON with CDN caching. Varies by Origin because the CORS headers do. */
-export function sendJson(res: ApiResponse, body: unknown, { maxAge = 300, staleWhileRevalidate = 3600 } = {}): void {
-  res.setHeader('Cache-Control', `public, max-age=0, s-maxage=${maxAge}, stale-while-revalidate=${staleWhileRevalidate}`);
-  res.setHeader('Vary', 'Origin');
+/** JSON with CDN caching. Rulebooks change a few times a year, so caches may keep answers for a while. */
+export function sendJson(res: ApiResponse, body: unknown, { maxAge = 3600, staleWhileRevalidate = 86400 } = {}): void {
+  res.setHeader('Cache-Control', `public, max-age=300, s-maxage=${maxAge}, stale-while-revalidate=${staleWhileRevalidate}`);
   res.status(200).json(body);
 }
 
@@ -13,9 +12,8 @@ export function withErrorHandling(handler: Handler): Handler {
     try {
       return await handler(req, res);
     } catch (error) {
-      if (error instanceof BadRequestError) {
-        return res.status(400).json({ error: error.message });
-      }
+      if (error instanceof BadRequestError) return res.status(400).json({ error: error.message });
+      if (error instanceof NotFoundError) return res.status(404).json({ error: error.message });
       console.error('Handler error:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }

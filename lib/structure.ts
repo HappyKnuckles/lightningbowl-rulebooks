@@ -11,6 +11,8 @@ export interface HeadingPattern {
   pattern: RegExp;
   /** Level of such a heading, or a function of its number. Levels are relative: the smallest found becomes 1. */
   level: number | ((number: string) => number);
+  /** In the text, only lines printed larger than the body text count (for patterns that body lines could match too). Bookmarks always count. */
+  larger?: boolean;
 }
 
 export interface ExtractedRule {
@@ -47,7 +49,12 @@ export const DEFAULT_HEADINGS: HeadingPattern[] = [
   { pattern: /^(?<number>§\s*\d{1,4}[a-z]?)\.?\s*[:.–—-]?\s*(?<title>\p{L}.*)$/u, level: 2 },
   { pattern: /^(?<number>\d{1,3}(?:\.\d{1,3}){1,4})\.?\s+(?<title>\p{Lu}.*)$/u, level: (number) => depth(number) + 1 },
   { pattern: /^(?<number>\d{1,3}[a-z])(?:[.)]|\s*[–—-])?\s*(?<title>\p{Lu}.*)$/u, level: 3 },
+  // "3 Spielbetrieb": a chapter by a plain number, only recognisable by its size
+  { pattern: /^(?<number>\d{1,2})\.?\s+(?<title>\p{Lu}.{1,80})$/u, level: 2, larger: true },
 ];
+
+/** Bookmarks that are not part of the rules. */
+const NOT_A_SECTION = /^(?:contents|table of contents|inhalt|inhaltsverzeichnis|index)$/iu;
 
 /** A heading's number alone on its line, with the title on the next one. */
 const NUMBER_ONLY = /^(?:(?:Chapter|Part|Kapitel|Teil|Abschnitt|Rule|Regel|Article|Artikel)\s+\S{1,6}|§\s*\d{1,4}[a-z]?)$/iu;
@@ -91,7 +98,7 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
       let text = line.text;
       const next = lines[i + 1];
       if (NUMBER_ONLY.test(text) && next) text = `${text} ${next.text}`;
-      const match = matchHeading(text, patterns);
+      const match = matchHeading(text, patterns, line.size > bodySize * 1.1);
       if (!match) continue;
       // a title that runs on into the next line is the start of a sentence
       if (match.title && next && /^\p{Ll}/u.test(next.text) && !NUMBER_ONLY.test(text)) match.title = null;
@@ -104,12 +111,23 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
     found.push(...onPage.filter((c) => !c.toc).map(({ toc: _, ...candidate }) => candidate));
   });
 
+  // a table of contents without page numbers: a page whose headings mostly come again later
+  const id = (c: Candidate) => ruleKey(c.number!);
+  const lastPage = new Map<string, number>();
+  for (const c of found) lastPage.set(id(c), c.page);
+  const tocPages = new Set<number>();
+  for (const page of new Set(found.map((c) => c.page))) {
+    const onPage = found.filter((c) => c.page === page);
+    const again = onPage.filter((c) => lastPage.get(id(c))! > page).length;
+    if (onPage.length >= 3 && again >= onPage.length * 0.6) tocPages.add(page);
+  }
+
   // the same number twice: cross references or running headers; the first is the heading
   const seen = new Set<string>();
   return found.filter((candidate) => {
-    const id = candidate.number!.replace(/\s+/g, '').toLowerCase();
-    if (seen.has(id)) return false;
-    seen.add(id);
+    if (tocPages.has(candidate.page)) return false;
+    if (seen.has(id(candidate))) return false;
+    seen.add(id(candidate));
     return true;
   });
 }
@@ -119,8 +137,13 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
  * number followed by rule text rather than a heading) gets a null title, or the label before its colon
  * ("4.1 Breitensportturniere: An einem …" → "Breitensportturniere").
  */
-export function matchHeading(text: string, patterns: HeadingPattern[]): { number: string; title: string | null; level: number; toc: boolean } | null {
-  for (const { pattern, level } of patterns) {
+export function matchHeading(
+  text: string,
+  patterns: HeadingPattern[],
+  larger = true,
+): { number: string; title: string | null; level: number; toc: boolean } | null {
+  for (const { pattern, level, larger: needsLarger } of patterns) {
+    if (needsLarger && !larger) continue;
     const groups = pattern.exec(text)?.groups;
     if (!groups?.number || groups.title === undefined) continue;
     const number = groups.number.replace(/\s+/g, ' ').trim();
@@ -152,10 +175,10 @@ function isHeading(text: string): boolean {
 
 /** Bookmarks as candidates, placed on the line of their page where the heading is printed. */
 function fromOutline(outline: OutlineEntry[], pages: Line[][], patterns: HeadingPattern[]): Candidate[] {
-  return outline.flatMap((entry) => {
+  const candidates = outline.flatMap((entry) => {
     const heading = matchHeading(entry.title, patterns);
-    // a bookmark on a sentence (some PDFs bookmark body text) is no heading
-    if (!heading && !headingTitle(entry.title)) return [];
+    // a bookmark on a sentence (some PDFs bookmark body text) is no heading, nor is the table of contents
+    if (!heading && (!headingTitle(entry.title) || NOT_A_SECTION.test(entry.title))) return [];
     const page = entry.page!;
     const wanted = normalize(entry.title).slice(0, 24);
     const line = Math.max(0, (pages[page - 1] ?? []).findIndex((l) => normalize(l.text).includes(wanted)));
@@ -164,6 +187,16 @@ function fromOutline(outline: OutlineEntry[], pages: Line[][], patterns: Heading
         ? { number: heading.number, title: heading.title, level: entry.level, page, line }
         : { number: null, title: entry.title, level: entry.level, page, line },
     ];
+  });
+  // "CHAPTER 1" with "CHAPTER 1 GENERAL PLAYING RULES" right under it: one entry, with the title
+  return candidates.filter((candidate, i) => {
+    const next = candidates[i + 1];
+    const same = next && candidate.number && next.number && ruleKey(candidate.number) === ruleKey(next.number);
+    if (same && (!candidate.title || candidate.title.length <= next.title!.length)) {
+      next.level = candidate.level;
+      return false;
+    }
+    return true;
   });
 }
 
@@ -286,7 +319,7 @@ export function ruleKey(numberOrTitle: string): string {
   );
 }
 
-/** The edition label in the first pages' text or the document's URL, by the rulebook's pattern (capture group 1). */
+/** The edition label in the document's file name or its first pages, by the rulebook's pattern (capture group 1). */
 export function findEdition(pattern: RegExp | undefined, pages: Line[][], url: string): string | null {
   if (!pattern) return null;
   const text = pages
@@ -294,6 +327,6 @@ export function findEdition(pattern: RegExp | undefined, pages: Line[][], url: s
     .flat()
     .map((l) => l.text)
     .join('\n');
-  const match = pattern.exec(text) ?? pattern.exec(decodeURIComponent(url.split('/').pop() ?? ''));
+  const match = pattern.exec(decodeURIComponent(url.split('/').pop() ?? '')) ?? pattern.exec(text);
   return match?.[1]?.replace(/\s+/g, ' ').trim() ?? null;
 }

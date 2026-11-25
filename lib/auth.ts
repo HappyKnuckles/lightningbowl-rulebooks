@@ -1,6 +1,5 @@
-// Bearer-secret checks for the endpoints that aren't for the public:
-// `/api/cron/sync` takes CRON_SECRET (Vercel Cron sends it), `/api/health` and
-// `/api/balls/export` take ADMIN_SECRET. Send `Authorization: Bearer <secret>`.
+// Bearer-secret checks for the endpoints that aren't for the public: `/api/cron/import` takes
+// CRON_SECRET (Vercel Cron sends it), `/api/health` takes ADMIN_SECRET. Send `Authorization: Bearer <secret>`.
 import { timingSafeEqual } from 'node:crypto';
 import type { ApiRequest, ApiResponse, Handler } from './http.js';
 

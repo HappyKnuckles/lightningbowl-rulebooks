@@ -1,13 +1,13 @@
 // Minimal forward-only migration runner: applies migrations/*.sql in name
 // order, each in its own transaction, and records them in schema_migrations.
-// Safe to call on every sync run: an advisory lock serialises concurrent
+// Safe to call on every import run: an advisory lock serialises concurrent
 // callers and already-applied files are skipped.
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { query, withTransaction } from './db.js';
 
-const LOCK_ID = 727274; // arbitrary, unique to this app
+const LOCK_ID = 727275; // arbitrary, unique to this app
 
 const MIGRATIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
 

@@ -38,7 +38,8 @@ for (const source of sources) {
     const shown = verbose ? structure.rules : [...structure.rules.slice(0, 40), ...structure.rules.slice(-10)];
     for (const rule of shown) out.push(`${'  '.repeat(rule.level - 1)}${rule.number ?? '·'} ${rule.title ?? '—'} [p${rule.page}, ${rule.key}]`);
     if (!verbose && structure.rules.length > 50) out.splice(out.length - 10, 0, `  … ${structure.rules.length - 50} more`);
-    if (!ok || args.includes('--lines')) {
+    const fewTitles = structure.rules.filter((r) => r.title).length < structure.rules.length * 0.2;
+    if (!ok || fewTitles || args.includes('--lines')) {
       // what the text looks like, to write heading patterns for it (short and only the first pages)
       content.pages.slice(0, 4).forEach((lines, i) => out.push(`-- page ${i + 1}`, ...lines.slice(0, 40).map((l) => `${l.size} ${l.text.slice(0, 60)}`)));
     }

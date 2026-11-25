@@ -141,7 +141,7 @@ export const Rule = z
   .strictObject({
     key: z.string().meta({ description: 'Identifies the rule in its rulebook, e.g. "4", "3.1.2", "chapter-3".' }),
     number: z.string().nullable().meta({ description: 'As printed, e.g. "Rule 4", "§ 12", "3.1.2"; null for unnumbered sections.' }),
-    title: z.string(),
+    title: z.string().nullable().meta({ description: 'The heading; null for numbered paragraphs without one of their own.' }),
     level: z.number().int().meta({ description: '1 = top level.' }),
     parent_key: z.string().nullable(),
     page: z.number().int().meta({ description: 'Page in the document.' }),
