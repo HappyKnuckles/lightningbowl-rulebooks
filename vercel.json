@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/import",
+      "schedule": "41 2 * * 1"
+    }
+  ],
+  "functions": {
+    "api/cron/import.ts": {
+      "maxDuration": 300,
+      "memory": 1769,
+      "includeFiles": "migrations/**"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/openapi.json",
+      "destination": "/api/openapi"
+    }
+  ]
+}

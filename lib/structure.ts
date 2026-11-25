@@ -103,6 +103,9 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
       if (!match) continue;
       // a title that runs on into the next line, or fills the column like running text, is the start of a sentence
       if (match.title && !NUMBER_ONLY.test(line.text) && next && (/^\p{Ll}/u.test(next.text) || fillsColumn(line, column))) match.title = null;
+      // some rulebooks print the heading above the number: "Downward Average Adjustments" / "Rule 4e. Relief of …"
+      const previous = lines[i - 1];
+      if (!match.title && previous && previous.size > bodySize * 1.05 && !matchHeading(previous.text, patterns)) match.title = headingTitle(previous.text);
       onPage.push({ ...match, page: pageIndex + 1, line: i });
     }
     // a table of contents: mostly entries ending in page numbers, or (without page numbers) almost only headings
