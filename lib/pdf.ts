@@ -14,6 +14,9 @@ export interface Line {
   text: string;
   /** Font size of the largest text on the line. */
   size: number;
+  /** Horizontal extent on the page, to tell a short heading from a line of running text that fills the column. */
+  left?: number;
+  right?: number;
 }
 
 export interface PdfContent {
@@ -107,7 +110,8 @@ export function toLines(items: TextItem[]): Line[] {
         text += part.str;
         end = part.x + part.width;
       }
-      return { text: cleanText(text), size: Math.round(Math.max(...parts.map((p) => p.size)) * 10) / 10 };
+      const size = Math.round(Math.max(...parts.map((p) => p.size)) * 10) / 10;
+      return { text: cleanText(text), size, left: Math.round(parts[0]!.x), right: Math.round(end) };
     })
     .filter((line) => line.text.length > 0);
 }

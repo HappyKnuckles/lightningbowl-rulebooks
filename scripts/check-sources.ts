@@ -41,7 +41,11 @@ for (const source of sources) {
     const fewTitles = structure.rules.filter((r) => r.title).length < structure.rules.length * 0.2;
     if (!ok || fewTitles || args.includes('--lines')) {
       // what the text looks like, to write heading patterns for it (short and only the first pages)
-      content.pages.slice(0, 4).forEach((lines, i) => out.push(`-- page ${i + 1}`, ...lines.slice(0, 40).map((l) => `${l.size} ${l.text.slice(0, 60)}`)));
+      const first = structure.rules[Math.min(3, structure.rules.length - 1)]?.page ?? 1;
+      for (const page of [first, first + 1]) {
+        const lines = content.pages[page - 1] ?? [];
+        out.push(`-- page ${page}`, ...lines.slice(0, 50).map((l) => `${l.size} ${l.left}-${l.right} ${l.text.slice(0, 60)}`));
+      }
     }
     if (verbose && structure.source === 'outline') {
       out.push('bookmarks:', ...content.outline.map((e) => `${'  '.repeat(e.level - 1)}${e.title} [p${e.page}]`));

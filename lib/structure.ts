@@ -91,6 +91,7 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
   const found: Candidate[] = [];
 
   pages.forEach((lines, pageIndex) => {
+    const column = columnOf(lines);
     const onPage: (Candidate & { toc: boolean })[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
@@ -100,8 +101,8 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
       if (NUMBER_ONLY.test(text) && next) text = `${text} ${next.text}`;
       const match = matchHeading(text, patterns, line.size > bodySize * 1.1);
       if (!match) continue;
-      // a title that runs on into the next line is the start of a sentence
-      if (match.title && next && /^\p{Ll}/u.test(next.text) && !NUMBER_ONLY.test(text)) match.title = null;
+      // a title that runs on into the next line, or fills the column like running text, is the start of a sentence
+      if (match.title && !NUMBER_ONLY.test(line.text) && next && (/^\p{Ll}/u.test(next.text) || fillsColumn(line, column))) match.title = null;
       onPage.push({ ...match, page: pageIndex + 1, line: i });
     }
     // a table of contents: mostly entries ending in page numbers, or (without page numbers) almost only headings
@@ -286,6 +287,19 @@ function repeatedLines(pages: Line[][]): Set<string> {
     }
   }
   return repeated;
+}
+
+/** Left and right edge of the text column on a page: where most lines start, and how far the longest ones reach. */
+function columnOf(lines: Line[]): { left: number; right: number } | null {
+  const rights = lines.map((l) => l.right).filter((r): r is number => r !== undefined).sort((a, b) => a - b);
+  const lefts = lines.map((l) => l.left).filter((l): l is number => l !== undefined).sort((a, b) => a - b);
+  if (rights.length < 5) return null;
+  return { left: lefts[Math.floor(lefts.length * 0.1)]!, right: rights[Math.floor(rights.length * 0.9)]! };
+}
+
+function fillsColumn(line: Line, column: { left: number; right: number } | null): boolean {
+  if (!column || line.right === undefined) return false;
+  return line.right - column.left >= (column.right - column.left) * 0.9;
 }
 
 function medianSize(pages: Line[][]): number {
