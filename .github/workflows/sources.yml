@@ -1,0 +1,24 @@
+# Downloads every rulebook and checks that its structure can still be read: on pull requests, weekly
+# (associations publish new editions under new links), and by hand. Results are annotations per rulebook.
+name: Sources
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 6 * * 1'
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check-sources -- --annotate
