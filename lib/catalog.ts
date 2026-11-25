@@ -250,7 +250,8 @@ interface HitRow extends RuleRow {
 
 /**
  * Rules of the current editions matching words (in titles and, through the search index, the rule
- * texts) or a rule number. Best first: an exact number, then text relevance and title similarity.
+ * texts) or a rule number. Best first: an exact number, then rules containing all the words (in the title
+ * before in the text), then titles that are merely similar (typos).
  */
 export async function searchRules(q: RuleSearchQuery) {
   const params = new SqlParams();
@@ -278,8 +279,8 @@ export async function searchRules(q: RuleSearchQuery) {
             a.id AS association_id, a.name AS association_name, a.short_name AS association_short_name,
             e.label AS edition_label, e.document_url,
             ((CASE WHEN ru.key = ${key} THEN 10 ELSE 0 END)
-              + ts_rank(ru.search, ${tsquery})
-              + coalesce(similarity(ru.title, ${text}), 0))::float8 AS score,
+              + (CASE WHEN ru.search @@ ${tsquery} THEN 1 + ts_rank(ru.search, ${tsquery}) ELSE 0 END)
+              + 0.3 * coalesce(similarity(ru.title, ${text}), 0))::float8 AS score,
             count(*) OVER ()::int AS total
      FROM rules ru
      JOIN rulebooks rb ON rb.current_edition_id = ru.edition_id

@@ -75,6 +75,8 @@ interface Candidate {
   level: number;
   page: number;
   line: number;
+  /** What follows the number on its line when that isn't the title (a paragraph's first words), for the search index. */
+  lead?: string;
 }
 
 export function extractStructure(content: PdfContent, options: { headings?: HeadingPattern[]; ignoreOutline?: boolean } = {}): Structure {
@@ -92,7 +94,7 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
 
   pages.forEach((lines, pageIndex) => {
     const column = columnOf(lines);
-    const onPage: (Candidate & { toc: boolean; leader: boolean })[] = [];
+    const onPage: (Candidate & { toc: boolean; leader: boolean; text: string })[] = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
       if (line.size < bodySize - 0.5) continue; // smaller than the body text: footnotes, footers
@@ -113,7 +115,11 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
     if (tocEntries >= 3 && tocEntries * 2 >= onPage.length) return;
     if (onPage.length >= 8 && onPage.length >= lines.length * 0.7) return;
     // elsewhere only entries with leader dots are contents lines; a title may well end in a number
-    found.push(...onPage.filter((c) => !c.leader).map(({ toc: _, leader: __, ...candidate }) => candidate));
+    found.push(
+      ...onPage
+        .filter((c) => !c.leader)
+        .map(({ toc: _, leader: __, text, ...candidate }) => (candidate.title === text ? candidate : { ...candidate, lead: text })),
+    );
   });
 
   // a table of contents without page numbers: a page whose headings mostly come again later
@@ -146,7 +152,7 @@ export function matchHeading(
   text: string,
   patterns: HeadingPattern[],
   larger = true,
-): { number: string; title: string | null; level: number; toc: boolean; leader: boolean } | null {
+): { number: string; title: string | null; level: number; toc: boolean; leader: boolean; text: string } | null {
   for (const { pattern, level, larger: needsLarger } of patterns) {
     if (needsLarger && !larger) continue;
     const groups = pattern.exec(text)?.groups;
@@ -157,7 +163,7 @@ export function matchHeading(
     const toc = leader || TRAILING_PAGE.test(title);
     title = title.replace(LEADER_AND_PAGE, '').replace(/^[:.–—-]\s*/, '').trim();
     if (!title || !/\p{L}/u.test(title)) continue;
-    return { number, title: headingTitle(title), level: typeof level === 'function' ? level(number) : level, toc, leader };
+    return { number, title: headingTitle(title), level: typeof level === 'function' ? level(number) : level, toc, leader, text: title };
   }
   return null;
 }
@@ -255,7 +261,7 @@ function finish(candidates: Candidate[], pages: Line[][]): ExtractedRule[] {
       level,
       parentKey: stack[stack.length - 1]?.key ?? null,
       page: candidate.page,
-      body: bodyBetween(pages, candidate, next, repeated),
+      body: [candidate.lead, bodyBetween(pages, candidate, next, repeated)].filter(Boolean).join(' ').slice(0, MAX_BODY),
     };
     stack.push(rule);
     return rule;

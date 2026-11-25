@@ -39,7 +39,7 @@ for (const source of sources) {
     for (const rule of shown) out.push(`${'  '.repeat(rule.level - 1)}${rule.number ?? '·'} ${rule.title ?? '—'} [p${rule.page}, ${rule.key}]`);
     if (!verbose && structure.rules.length > 50) out.splice(out.length - 10, 0, `  … ${structure.rules.length - 50} more`);
     const fewTitles = structure.rules.filter((r) => r.title).length < structure.rules.length * 0.2;
-    if (!ok || fewTitles || args.includes('--lines')) {
+    if (!ok || fewTitles || args.includes('--lines') || process.env.LINES?.startsWith(`${source.id}:`)) {
       // what the text looks like, to write heading patterns for it (short and only the first pages)
       const first = structure.rules[Math.min(3, structure.rules.length - 1)]?.page ?? 1;
       // LINES=rulebook-id:10,11 picks the pages

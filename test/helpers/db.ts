@@ -27,6 +27,8 @@ export async function startDatabase(): Promise<() => Promise<void>> {
   await pg.initialise();
   await pg.start();
   process.env.DATABASE_URL = `postgres://postgres:postgres@localhost:${port}/postgres`;
+  process.env.ADMIN_SECRET ??= 'test-admin-secret';
+  process.env.CRON_SECRET ??= 'test-cron-secret';
   await migrate({ log: () => {} });
 
   return async function stop() {
