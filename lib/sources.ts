@@ -69,6 +69,8 @@ const dbu = (id: string, title: string, file: string, link: RegExp): RulebookSou
 });
 
 const BTBA_RESOURCES = 'https://btba.org.uk/resources/';
+/** "© BTBA Nov 2026" in the footer. */
+const BTBA_EDITION = /©\s*BTBA\s+(\p{L}+\.?\s+20\d\d)/u;
 
 export const ASSOCIATIONS: AssociationSource[] = [
   {
@@ -115,12 +117,6 @@ export const ASSOCIATIONS: AssociationSource[] = [
         'DBU-Technische-Vorschriften-Baelle.pdf',
         /DBU-Technische-Vorschriften-Baelle\.pdf/,
       ),
-      dbu(
-        'ahndungsmittelkatalog',
-        'Ahndungsmittelkatalog',
-        'DBU-Ahndungsmittelkatalog-Stand-01.07.2026.pdf',
-        /DBU-Ahndungsmittelkatalog[^"'<>\s]*\.pdf/,
-      ),
     ],
   },
   {
@@ -138,6 +134,7 @@ export const ASSOCIATIONS: AssociationSource[] = [
         language: 'en',
         page: 'https://bowling.sport',
         url: 'https://bowling.sport/wp-content/uploads/2026/04/WB-Statutes-as-of-Sept-2019-Modified-2025.pdf',
+        edition: /(Sept-2019-Modified-\d{4})/i,
       },
     ],
   },
@@ -176,6 +173,7 @@ export const ASSOCIATIONS: AssociationSource[] = [
         page: BTBA_RESOURCES,
         url: 'https://btba.org.uk/wp-content/uploads/2026/11/General-Playing-Rules-2026-Nov-PLM-1.pdf',
         discover: { page: BTBA_RESOURCES, link: /General-Playing-Rules[^"'<>\s]*\.pdf/ },
+        edition: BTBA_EDITION,
       },
       {
         id: 'btba-league-rules',
@@ -184,6 +182,7 @@ export const ASSOCIATIONS: AssociationSource[] = [
         page: BTBA_RESOURCES,
         url: 'https://btba.org.uk/wp-content/uploads/2026/02/League-Rules-2026-1.pdf',
         discover: { page: BTBA_RESOURCES, link: /League-Rules[^"'<>\s]*\.pdf/ },
+        edition: BTBA_EDITION,
       },
       {
         id: 'btba-tournament-rules',
@@ -192,6 +191,7 @@ export const ASSOCIATIONS: AssociationSource[] = [
         page: BTBA_RESOURCES,
         url: 'https://btba.org.uk/wp-content/uploads/2026/11/Tournament-Rules-2026-Nov-PLM.pdf',
         discover: { page: BTBA_RESOURCES, link: /Tournament-Rules[^"'<>\s]*\.pdf/ },
+        edition: BTBA_EDITION,
       },
     ],
   },

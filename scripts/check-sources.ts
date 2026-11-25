@@ -10,6 +10,7 @@ const args = process.argv.slice(2);
 const verbose = args.includes('--verbose');
 const annotate = args.includes('--annotate');
 const wanted = args.filter((arg) => !arg.startsWith('--'));
+const titled = (n: number, total: number) => `${n}/${total}`;
 const sources = wanted.length ? RULEBOOKS.filter((r) => wanted.includes(r.id) || wanted.includes(r.associationId)) : RULEBOOKS;
 
 /** Annotation text: GitHub turns %0A into line breaks. */
@@ -32,11 +33,15 @@ for (const source of sources) {
       `url: ${url}`,
       `pages: ${content.pageCount}, bookmarks: ${content.outline.length}, headings in text: ${fromText.length}`,
       `edition: ${edition ?? '-'}, structure from: ${structure.source}, rules: ${structure.rules.length}`,
-      `levels: ${[...new Set(structure.rules.map((r) => r.level))].sort().join(',')}, without number: ${structure.rules.filter((r) => !r.number).length}, empty body: ${structure.rules.filter((r) => !r.body).length}`,
+      `levels: ${[...new Set(structure.rules.map((r) => r.level))].sort().join(',')}, with title: ${titled(structure.rules.filter((r) => r.title).length, structure.rules.length)}, without number: ${structure.rules.filter((r) => !r.number).length}, empty body: ${structure.rules.filter((r) => !r.body).length}`,
     );
     const shown = verbose ? structure.rules : [...structure.rules.slice(0, 40), ...structure.rules.slice(-10)];
-    for (const rule of shown) out.push(`${'  '.repeat(rule.level - 1)}${rule.number ?? '·'} ${rule.title} [p${rule.page}, ${rule.key}]`);
+    for (const rule of shown) out.push(`${'  '.repeat(rule.level - 1)}${rule.number ?? '·'} ${rule.title ?? '—'} [p${rule.page}, ${rule.key}]`);
     if (!verbose && structure.rules.length > 50) out.splice(out.length - 10, 0, `  … ${structure.rules.length - 50} more`);
+    if (!ok || args.includes('--lines')) {
+      // what the text looks like, to write heading patterns for it (short and only the first pages)
+      content.pages.slice(0, 4).forEach((lines, i) => out.push(`-- page ${i + 1}`, ...lines.slice(0, 40).map((l) => `${l.size} ${l.text.slice(0, 60)}`)));
+    }
     if (verbose && structure.source === 'outline') {
       out.push('bookmarks:', ...content.outline.map((e) => `${'  '.repeat(e.level - 1)}${e.title} [p${e.page}]`));
     }

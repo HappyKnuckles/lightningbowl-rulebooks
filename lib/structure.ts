@@ -18,7 +18,8 @@ export interface ExtractedRule {
   key: string;
   /** As printed, e.g. "Rule 4", "§ 12", "3.1.2"; null for unnumbered sections like a glossary. */
   number: string | null;
-  title: string;
+  /** Null for numbered paragraphs that have no heading of their own (their first words are rule text, which isn't kept). */
+  title: string | null;
   /** 1 = top level. */
   level: number;
   /** Key of the enclosing rule, null at the top. */
@@ -45,7 +46,7 @@ export const DEFAULT_HEADINGS: HeadingPattern[] = [
   { pattern: /^(?<number>(?:Rule|Regel|Article|Artikel|Art\.)\s*\d{1,4}[a-z]?)\s*[:.–—-]?\s+(?<title>\S.*)$/iu, level: 2 },
   { pattern: /^(?<number>§\s*\d{1,4}[a-z]?)\.?\s*[:.–—-]?\s*(?<title>\p{L}.*)$/u, level: 2 },
   { pattern: /^(?<number>\d{1,3}(?:\.\d{1,3}){1,4})\.?\s+(?<title>\p{Lu}.*)$/u, level: (number) => depth(number) + 1 },
-  { pattern: /^(?<number>\d{1,3}[a-z])[.)]\s+(?<title>\p{Lu}.*)$/u, level: 3 },
+  { pattern: /^(?<number>\d{1,3}[a-z])(?:[.)]|\s*[–—-])?\s*(?<title>\p{Lu}.*)$/u, level: 3 },
 ];
 
 /** A heading's number alone on its line, with the title on the next one. */
@@ -56,14 +57,14 @@ const LEADER_AND_PAGE = /\s*(?:[.·…_]\s?){2,}\s*\d{1,4}$/u;
 const TRAILING_PAGE = /\s\d{1,4}$/;
 
 const MAX_TITLE = 120;
-/** Bookmarks are used when there are at least this many, and at least half as many as headings found in the text. */
+/** Bookmarks are used when there are at least this many; numbered headings in the text that they lack are added. */
 const MIN_OUTLINE = 3;
 /** Text kept per rule for the search index. */
 const MAX_BODY = 20_000;
 
 interface Candidate {
   number: string | null;
-  title: string;
+  title: string | null;
   level: number;
   page: number;
   line: number;
@@ -73,9 +74,8 @@ export function extractStructure(content: PdfContent, options: { headings?: Head
   const patterns = [...(options.headings ?? []), ...DEFAULT_HEADINGS];
   const fromText = findHeadings(content.pages, patterns);
   const outline = options.ignoreOutline ? [] : content.outline.filter((entry) => entry.page !== null && entry.title);
-  const useOutline = outline.length >= MIN_OUTLINE && outline.length * 2 >= fromText.length;
-  const candidates = useOutline ? fromOutline(outline, content.pages, patterns) : fromText;
-  return { source: useOutline ? 'outline' : 'headings', rules: finish(candidates, content.pages) };
+  if (outline.length < MIN_OUTLINE) return { source: 'headings', rules: finish(fromText, content.pages) };
+  return { source: 'outline', rules: finish(mergeOutline(fromOutline(outline, content.pages, patterns), fromText), content.pages) };
 }
 
 /** Heading lines in the text, without the table of contents and repeats. */
@@ -93,11 +93,14 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
       if (NUMBER_ONLY.test(text) && next) text = `${text} ${next.text}`;
       const match = matchHeading(text, patterns);
       if (!match) continue;
+      // a title that runs on into the next line is the start of a sentence
+      if (match.title && next && /^\p{Ll}/u.test(next.text) && !NUMBER_ONLY.test(text)) match.title = null;
       onPage.push({ ...match, page: pageIndex + 1, line: i });
     }
-    // a page that is mostly entries ending in page numbers is (part of) the table of contents
+    // a table of contents: mostly entries ending in page numbers, or (without page numbers) almost only headings
     const tocEntries = onPage.filter((c) => c.toc).length;
     if (tocEntries >= 3 && tocEntries * 2 >= onPage.length) return;
+    if (onPage.length >= 8 && onPage.length >= lines.length * 0.7) return;
     found.push(...onPage.filter((c) => !c.toc).map(({ toc: _, ...candidate }) => candidate));
   });
 
@@ -111,8 +114,12 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
   });
 }
 
-/** Number, title and level of a heading line, or null if the line isn't one. */
-export function matchHeading(text: string, patterns: HeadingPattern[]): { number: string; title: string; level: number; toc: boolean } | null {
+/**
+ * Number, title and level of a heading line, or null if the line isn't one. A numbered paragraph (the
+ * number followed by rule text rather than a heading) gets a null title, or the label before its colon
+ * ("4.1 Breitensportturniere: An einem …" → "Breitensportturniere").
+ */
+export function matchHeading(text: string, patterns: HeadingPattern[]): { number: string; title: string | null; level: number; toc: boolean } | null {
   for (const { pattern, level } of patterns) {
     const groups = pattern.exec(text)?.groups;
     if (!groups?.number || groups.title === undefined) continue;
@@ -120,23 +127,70 @@ export function matchHeading(text: string, patterns: HeadingPattern[]): { number
     let title = groups.title.trim();
     const toc = LEADER_AND_PAGE.test(title) || TRAILING_PAGE.test(title);
     title = title.replace(LEADER_AND_PAGE, '').replace(/^[:.–—-]\s*/, '').trim();
-    if (!title || title.length > MAX_TITLE || !/\p{L}/u.test(title)) continue;
-    return { number, title, level: typeof level === 'function' ? level(number) : level, toc };
+    if (!title || !/\p{L}/u.test(title)) continue;
+    return { number, title: headingTitle(title), level: typeof level === 'function' ? level(number) : level, toc };
   }
   return null;
 }
 
+/** Words that make a line a sentence rather than a heading. */
+const VERBS =
+  /\s(?:is|are|was|were|be|been|shall|must|may|will|can|cannot|should|has|have|ist|sind|wird|werden|wurde|muss|müssen|kann|können|darf|dürfen|soll|sollen|hat|haben|gilt|gelten|erhält|regelt|besteht|bestehen)\s/iu;
+const MAX_WORDS = 12;
+
+/** The heading in `text`, or null if it is the start of rule text. */
+export function headingTitle(text: string): string | null {
+  const colon = /^([^:]{2,40}):\s+\S/u.exec(text);
+  if (colon && isHeading(colon[1]!)) return colon[1]!.trim();
+  return isHeading(text) ? text : null;
+}
+
+function isHeading(text: string): boolean {
+  const words = text.split(/\s+/).filter((w) => /\p{L}/u.test(w));
+  return text.length <= MAX_TITLE && words.length > 0 && words.length <= MAX_WORDS && !/[.:,;]$/.test(text) && !VERBS.test(` ${text} `);
+}
+
 /** Bookmarks as candidates, placed on the line of their page where the heading is printed. */
 function fromOutline(outline: OutlineEntry[], pages: Line[][], patterns: HeadingPattern[]): Candidate[] {
-  return outline.map((entry) => {
+  return outline.flatMap((entry) => {
     const heading = matchHeading(entry.title, patterns);
+    // a bookmark on a sentence (some PDFs bookmark body text) is no heading
+    if (!heading && !headingTitle(entry.title)) return [];
     const page = entry.page!;
     const wanted = normalize(entry.title).slice(0, 24);
     const line = Math.max(0, (pages[page - 1] ?? []).findIndex((l) => normalize(l.text).includes(wanted)));
-    return heading
-      ? { number: heading.number, title: heading.title, level: entry.level, page, line }
-      : { number: null, title: entry.title, level: entry.level, page, line };
+    return [
+      heading
+        ? { number: heading.number, title: heading.title, level: entry.level, page, line }
+        : { number: null, title: entry.title, level: entry.level, page, line },
+    ];
   });
+}
+
+/**
+ * Bookmarks plus the numbered headings and paragraphs of the text that have no bookmark, in document
+ * order. Those added go one level below the nearest preceding entry their number continues ("2.1" → "2.1.3",
+ * "4" → "4a"), or below the preceding bookmark.
+ */
+function mergeOutline(outline: Candidate[], text: Candidate[]): Candidate[] {
+  const id = (c: Candidate) => (c.number ? ruleKey(c.number) : null);
+  const known = new Set(outline.map(id).filter(Boolean));
+  const merged = [...outline, ...text.filter((c) => !known.has(id(c)))].sort((a, b) => a.page - b.page || a.line - b.line);
+  const placed: Candidate[] = [];
+  for (const candidate of merged) {
+    if (outline.includes(candidate)) {
+      placed.push(candidate);
+      continue;
+    }
+    const key = id(candidate)!;
+    const parent = [...placed].reverse().find((p) => {
+      const parentKey = id(p);
+      return parentKey && key !== parentKey && key.startsWith(parentKey) && /^[.a-z]/.test(key.slice(parentKey.length));
+    });
+    const anchor = parent ?? [...placed].reverse().find((p) => outline.includes(p));
+    placed.push({ ...candidate, level: (anchor?.level ?? 0) + 1 });
+  }
+  return placed;
 }
 
 /** Levels starting at 1, parents, unique keys and the text under each heading. */
@@ -149,7 +203,7 @@ function finish(candidates: Candidate[], pages: Line[][]): ExtractedRule[] {
   return candidates.map((candidate, index) => {
     const level = candidate.level - minLevel + 1;
     while (stack.length && stack[stack.length - 1]!.level >= level) stack.pop();
-    const base = ruleKey(candidate.number ?? candidate.title);
+    const base = ruleKey(candidate.number ?? candidate.title ?? 'section');
     const count = (used.get(base) ?? 0) + 1;
     used.set(base, count);
     const next = candidates[index + 1];

@@ -1,5 +1,6 @@
 # Downloads every rulebook and checks that its structure can still be read: on pull requests, weekly
-# (associations publish new editions under new links), and by hand. Results are annotations per rulebook.
+# (associations publish new editions under new links), and by hand. One job per association, with an
+# annotation per rulebook.
 name: Sources
 
 on:
@@ -14,6 +15,11 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        association: [usbc, dbu, ibf, ebf, btba, tba, ctf, oeskb]
+    name: check (${{ matrix.association }})
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,4 +27,4 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run check-sources -- --annotate
+      - run: npm run check-sources -- ${{ matrix.association }} --annotate
