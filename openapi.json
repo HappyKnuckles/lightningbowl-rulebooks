@@ -68,13 +68,14 @@
             "name": "scope",
             "in": "query",
             "required": false,
-            "description": "National associations, or continental and world federations.",
+            "description": "National associations, continental and world federations, or professional tours.",
             "schema": {
               "type": "string",
               "enum": [
                 "national",
                 "continental",
-                "world"
+                "world",
+                "tour"
               ]
             }
           },
@@ -815,7 +816,8 @@
             "enum": [
               "national",
               "continental",
-              "world"
+              "world",
+              "tour"
             ]
           },
           "website": {

@@ -15,8 +15,8 @@ export interface AssociationSource {
   shortName: string;
   /** ISO 3166-1 alpha-2, or null for international and continental bodies. */
   country: string | null;
-  /** "World", "Europe", or null for a national association. */
-  scope: 'national' | 'continental' | 'world';
+  /** A national association, a continental or world federation, or a professional tour. */
+  scope: 'national' | 'continental' | 'world' | 'tour';
   website: string;
   /** Other ids and names the association is found by, e.g. former names. */
   aliases: string[];
@@ -255,6 +255,49 @@ export const ASSOCIATIONS: AssociationSource[] = [
     ],
   },
 ];
+
+ASSOCIATIONS.push(
+  {
+    id: 'pba',
+    name: 'Professional Bowlers Association',
+    shortName: 'PBA',
+    country: 'US',
+    scope: 'tour',
+    website: 'https://www.pba.com',
+    aliases: [],
+    rulebooks: [
+      {
+        id: 'pba-rule-book',
+        title: 'PBA Rule Book',
+        language: 'en',
+        page: 'https://pba.com/player-resources',
+        url: 'https://www.pba.com/sites/pba/files/2026-06/PBA%20RULE%20BOOK%202026_Final_6-9-26.pdf',
+        discover: { page: 'https://pba.com/player-resources', link: /PBA(?:%20|[\s_-])RULE(?:%20|[\s_-])BOOK[^"'<>]*\.pdf/i },
+        edition: /RULE BOOK (20\d\d)/i,
+      },
+    ],
+  },
+  {
+    id: 'pwba',
+    name: "Professional Women's Bowling Association",
+    shortName: 'PWBA',
+    country: 'US',
+    scope: 'tour',
+    website: 'https://pwba.com',
+    aliases: [],
+    rulebooks: [
+      {
+        id: 'pwba-rulebook',
+        title: 'PWBA Rulebook',
+        language: 'en',
+        page: 'https://pwba.com/player-resources',
+        url: 'https://pwba.com/getmedia/ad383869-1039-4491-835e-46a7ef916075/2026-PWBA-Rulebook-Final-v2.pdf',
+        discover: { page: 'https://pwba.com/player-resources', link: /PWBA-Rulebook[^"'<>\s]*\.pdf/i, pick: 'highest' },
+        edition: /(20\d\d)-PWBA-Rulebook/i,
+      },
+    ],
+  },
+);
 
 export const RULEBOOKS: (RulebookSource & { associationId: string })[] = ASSOCIATIONS.flatMap((association) =>
   association.rulebooks.map((rulebook) => ({ ...rulebook, associationId: association.id })),

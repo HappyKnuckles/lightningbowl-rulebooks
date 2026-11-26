@@ -132,7 +132,7 @@ export async function findAssociations(filters: { search?: string; country?: str
   }
   const { rows } = await query<AssociationRow>(
     `SELECT id, name, short_name, country, scope, website, aliases FROM associations a WHERE ${where.join(' AND ')}
-     ORDER BY CASE a.scope WHEN 'world' THEN 0 WHEN 'continental' THEN 1 ELSE 2 END, a.short_name`,
+     ORDER BY CASE a.scope WHEN 'world' THEN 0 WHEN 'continental' THEN 1 WHEN 'national' THEN 2 ELSE 3 END, a.short_name`,
     params.values,
   );
   const rulebooks = await rulebooksOf(

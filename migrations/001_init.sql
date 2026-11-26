@@ -9,7 +9,7 @@ CREATE TABLE associations (
   name text NOT NULL,
   short_name text NOT NULL,
   country text,
-  scope text NOT NULL CHECK (scope IN ('national', 'continental', 'world')),
+  scope text NOT NULL CHECK (scope IN ('national', 'continental', 'world', 'tour')),
   website text NOT NULL,
   aliases text[] NOT NULL DEFAULT '{}',
   removed_at timestamptz

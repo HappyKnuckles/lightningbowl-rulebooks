@@ -7,7 +7,7 @@ import { z } from 'zod';
 // --------------------------------------------------------------- query parts
 
 export const LANGUAGES = ['en', 'de'] as const;
-export const SCOPES = ['national', 'continental', 'world'] as const;
+export const SCOPES = ['national', 'continental', 'world', 'tour'] as const;
 
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
@@ -41,7 +41,7 @@ export const pagingParams = {
 export const AssociationQuery = z.object({
   search: text('Case-insensitive match on name, short name and former names. Alias: `q`.'),
   country: z.string().length(2).toUpperCase().optional().meta({ description: 'ISO 3166-1 alpha-2 country code, e.g. "DE".' }),
-  scope: z.enum(SCOPES).optional().meta({ description: 'National associations, or continental and world federations.' }),
+  scope: z.enum(SCOPES).optional().meta({ description: 'National associations, continental and world federations, or professional tours.' }),
   language,
 });
 

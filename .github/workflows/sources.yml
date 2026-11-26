@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        association: [usbc, dbu, ibf, ebf, btba, tba, ctf, oeskb]
+        association: [usbc, dbu, ibf, ebf, btba, tba, ctf, oeskb, pba, pwba]
     name: check (${{ matrix.association }})
     steps:
       - uses: actions/checkout@v4

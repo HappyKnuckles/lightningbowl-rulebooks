@@ -21,6 +21,8 @@ The rule texts are not stored or served. They stay with the associations, and ev
 | TBA – Tenpin Bowling Australia                                        | League, Tournament & General Playing Rule Book                                                                                                   | en       |
 | CTF – Canadian Tenpin Federation                                      | Playing Rules                                                                                                                                    | en       |
 | ÖSKB – Österreichischer Sportkegel- und Bowlingverband                | Sportordnung Bowling (B3)                                                                                                                        | de       |
+| PBA – Professional Bowlers Association (tour)                         | PBA Rule Book                                                                                                                                    | en       |
+| PWBA – Professional Women's Bowling Association (tour)                | PWBA Rulebook                                                                                                                                    | en       |
 
 They are configured in `lib/sources.ts`, together with where each document lives and how its edition is labelled.
 
