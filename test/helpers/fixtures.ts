@@ -101,7 +101,9 @@ export function fakeFetch(routes: Record<string, Route>): { fetchFn: FetchFn; ca
     if (route instanceof Error) throw route;
     if (route === undefined) return new Response('not found', { status: 404 });
     const headers: Record<string, string> =
-      typeof route === 'string' ? { 'content-type': 'text/html' } : { 'content-type': 'application/pdf', 'last-modified': 'Mon, 02 Nov 2026 10:00:00 GMT' };
+      typeof route === 'string'
+        ? { 'content-type': 'text/html' }
+        : { 'content-type': 'application/pdf', 'last-modified': 'Mon, 02 Nov 2026 10:00:00 GMT' };
     return new Response(typeof route === 'string' ? route : new Blob([route as Uint8Array<ArrayBuffer>]), { status: 200, headers });
   };
   return { fetchFn, calls };

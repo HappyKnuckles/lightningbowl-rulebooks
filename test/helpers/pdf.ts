@@ -10,7 +10,10 @@ export interface TestBookmark {
   children?: TestBookmark[];
 }
 
-export async function makePdf(pages: TestLine[][], { bookmarks = [], title }: { bookmarks?: TestBookmark[]; title?: string } = {}): Promise<Uint8Array> {
+export async function makePdf(
+  pages: TestLine[][],
+  { bookmarks = [], title }: { bookmarks?: TestBookmark[]; title?: string } = {},
+): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   if (title) doc.setTitle(title);
   const font = await doc.embedFont(StandardFonts.Helvetica);

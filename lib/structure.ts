@@ -45,7 +45,8 @@ export const DEFAULT_HEADINGS: HeadingPattern[] = [
     pattern: /^(?<number>(?:Chapter|Part|Kapitel|Teil|Abschnitt)\s+(?:\d{1,3}|[IVXLC]{1,6}|[A-Z]))\s*[:.–—-]?\s+(?<title>\S.*)$/iu,
     level: 1,
   },
-  { pattern: /^(?<number>(?:Rule|Regel|Article|Artikel|Art\.)\s*\d{1,4}[a-z]?)\s*[:.–—-]?\s+(?<title>\S.*)$/iu, level: 2 },
+  // "Rule 2a*." — some rulebooks star the rules that differ from the ones they are based on
+  { pattern: /^(?<number>(?:Rule|Regel|Article|Artikel|Art\.)\s*\d{1,4}[a-z]?)\*?\s*[:.–—-]?\s+(?<title>\S.*)$/iu, level: 2 },
   { pattern: /^(?<number>§\s*\d{1,4}[a-z]?)\.?\s*[:.–—-]?\s*(?<title>\p{L}.*)$/u, level: 2 },
   { pattern: /^(?<number>\d{1,3}(?:\.\d{1,3}){1,4})\.?\s+(?<title>\p{Lu}.*)$/u, level: (number) => depth(number) + 1 },
   { pattern: /^(?<number>\d{1,3}[a-z])(?:[.)]|\s*[–—-])?\s*(?<title>\p{Lu}.*)$/u, level: 3 },
@@ -107,7 +108,8 @@ export function findHeadings(pages: Line[][], patterns: HeadingPattern[]): Candi
       if (match.title && !NUMBER_ONLY.test(line.text) && next && (/^\p{Ll}/u.test(next.text) || fillsColumn(line, column))) match.title = null;
       // some rulebooks print the heading above the number: "Downward Average Adjustments" / "Rule 4e. Relief of …"
       const previous = lines[i - 1];
-      if (!match.title && previous && previous.size >= bodySize + 0.3 && !matchHeading(previous.text, patterns)) match.title = headingTitle(previous.text);
+      if (!match.title && previous && previous.size >= bodySize + 0.3 && !matchHeading(previous.text, patterns))
+        match.title = headingTitle(previous.text);
       onPage.push({ ...match, page: pageIndex + 1, line: i });
     }
     // a table of contents: mostly entries ending in page numbers, or (without page numbers) almost only headings
@@ -161,7 +163,10 @@ export function matchHeading(
     let title = groups.title.trim();
     const leader = LEADER_AND_PAGE.test(title);
     const toc = leader || TRAILING_PAGE.test(title);
-    title = title.replace(LEADER_AND_PAGE, '').replace(/^[:.–—-]\s*/, '').trim();
+    title = title
+      .replace(LEADER_AND_PAGE, '')
+      .replace(/^[:.–—-]\s*/, '')
+      .trim();
     if (!title || !/\p{L}/u.test(title)) continue;
     return { number, title: headingTitle(title), level: typeof level === 'function' ? level(number) : level, toc, leader, text: title };
   }
@@ -195,7 +200,10 @@ function fromOutline(outline: OutlineEntry[], pages: Line[][], patterns: Heading
     if (!heading && (!headingTitle(entry.title) || NOT_A_SECTION.test(entry.title))) return [];
     const page = entry.page!;
     const wanted = normalize(entry.title).slice(0, 24);
-    const line = Math.max(0, (pages[page - 1] ?? []).findIndex((l) => normalize(l.text).includes(wanted)));
+    const line = Math.max(
+      0,
+      (pages[page - 1] ?? []).findIndex((l) => normalize(l.text).includes(wanted)),
+    );
     return [
       heading
         ? { number: heading.number, title: heading.title, level: entry.level, page, line }
@@ -304,8 +312,14 @@ function repeatedLines(pages: Line[][]): Set<string> {
 
 /** Left and right edge of the text column on a page: where most lines start, and how far the longest ones reach. */
 function columnOf(lines: Line[]): { left: number; right: number } | null {
-  const rights = lines.map((l) => l.right).filter((r): r is number => r !== undefined).sort((a, b) => a - b);
-  const lefts = lines.map((l) => l.left).filter((l): l is number => l !== undefined).sort((a, b) => a - b);
+  const rights = lines
+    .map((l) => l.right)
+    .filter((r): r is number => r !== undefined)
+    .sort((a, b) => a - b);
+  const lefts = lines
+    .map((l) => l.left)
+    .filter((l): l is number => l !== undefined)
+    .sort((a, b) => a - b);
   if (rights.length < 5) return null;
   return { left: lefts[Math.floor(lefts.length * 0.1)]!, right: rights[Math.floor(rights.length * 0.9)]! };
 }

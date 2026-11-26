@@ -65,7 +65,13 @@ const edition = z
 
 export const RulebookDetailQuery = z.object({
   edition,
-  maxLevel: z.coerce.number().int().min(1).max(10).optional().meta({ description: 'Only rules down to this level (1 = top level), for a short table of contents.' }),
+  maxLevel: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .optional()
+    .meta({ description: 'Only rules down to this level (1 = top level), for a short table of contents.' }),
 });
 
 export const RulePath = z.object({
@@ -108,9 +114,7 @@ export const Edition = z
 
 export const AssociationRef = z.strictObject({ id: z.string(), name: z.string(), short_name: z.string() }).meta({ id: 'AssociationRef' });
 
-export const RulebookRef = z
-  .strictObject({ id: z.string(), title: z.string(), language: z.enum(LANGUAGES) })
-  .meta({ id: 'RulebookRef' });
+export const RulebookRef = z.strictObject({ id: z.string(), title: z.string(), language: z.enum(LANGUAGES) }).meta({ id: 'RulebookRef' });
 
 export const RulebookSummary = z
   .strictObject({
@@ -175,7 +179,9 @@ export const PageMeta = z
   .object({ number: z.number().int(), size: z.number().int(), totalElements: z.number().int(), totalPages: z.number().int() })
   .meta({ id: 'PageMeta' });
 
-export const RuleHitPage = z.object({ content: z.array(RuleHit), page: PageMeta }).meta({ id: 'RuleHitPage', description: 'One page of search results, best first.' });
+export const RuleHitPage = z
+  .object({ content: z.array(RuleHit), page: PageMeta })
+  .meta({ id: 'RuleHitPage', description: 'One page of search results, best first.' });
 
 export type Edition = z.infer<typeof Edition>;
 export type RulebookSummary = z.infer<typeof RulebookSummary>;
@@ -192,7 +198,9 @@ export const ImportRun = z
     finished_at: z.string().nullable(),
     status: z.enum(['running', 'success', 'partial', 'failed']),
     trigger: z.string(),
-    stats: z.record(z.string(), z.unknown()).meta({ description: 'Per rulebook: status (unchanged, imported, failed, not_reached), url, edition, rules.' }),
+    stats: z
+      .record(z.string(), z.unknown())
+      .meta({ description: 'Per rulebook: status (unchanged, imported, failed, not_reached), url, edition, rules.' }),
     errors: z.array(z.string()),
   })
   .meta({ id: 'ImportRun' });
@@ -202,8 +210,15 @@ export type ImportRun = z.infer<typeof ImportRun>;
 export const Health = z
   .object({
     status: z.enum(['ok', 'empty']).meta({ description: '`empty`: tables exist but no import has run yet.' }),
-    counts: z.object({ associations: z.number().int(), rulebooks: z.number().int(), rulebooks_without_edition: z.number().int(), rules: z.number().int() }),
-    failing: z.array(z.object({ id: z.string(), error: z.string(), checked_at: z.string().nullable() })).meta({ description: 'Rulebooks whose last import failed.' }),
+    counts: z.object({
+      associations: z.number().int(),
+      rulebooks: z.number().int(),
+      rulebooks_without_edition: z.number().int(),
+      rules: z.number().int(),
+    }),
+    failing: z
+      .array(z.object({ id: z.string(), error: z.string(), checked_at: z.string().nullable() }))
+      .meta({ description: 'Rulebooks whose last import failed.' }),
     lastImport: ImportRun.nullable(),
   })
   .meta({ id: 'Health' });
@@ -284,7 +299,8 @@ export function parseQuery<S extends z.ZodObject>(schema: S, raw: RawQuery): z.o
   if (!result.success) {
     const issue = result.error.issues[0]!;
     const name = String(issue.path[0] ?? 'query');
-    const message = issue.code === 'invalid_type' && issue.input === undefined ? 'is required' : issue.message.charAt(0).toLowerCase() + issue.message.slice(1);
+    const message =
+      issue.code === 'invalid_type' && issue.input === undefined ? 'is required' : issue.message.charAt(0).toLowerCase() + issue.message.slice(1);
     throw new BadRequestError(`Parameter "${name}" ${message}`);
   }
   return result.data;

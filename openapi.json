@@ -1,0 +1,1542 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Lightning Bowl Rulebooks API",
+    "version": "1.0.0",
+    "license": {
+      "name": "ISC",
+      "identifier": "ISC"
+    },
+    "description": "The rulebooks of bowling associations (USBC, DBU, IBF/World Bowling, EBF/ETBF, BTBA, …): every rule's number, title and page, searchable, each with a link to the official document at that page. The rule texts are not served; they stay with the associations, and the link opens them. Rulebooks are re-imported weekly from the official documents.\n\nConventions: `page` is zero-based; list parameters repeat (`association=usbc&association=dbu`). Errors are `{ \"error\": \"...\" }`."
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Associations",
+      "description": "Associations and federations."
+    },
+    {
+      "name": "Rulebooks",
+      "description": "Rulebooks, their editions and their rules."
+    },
+    {
+      "name": "Search",
+      "description": "Rules across rulebooks."
+    },
+    {
+      "name": "Operations",
+      "description": "Health of the weekly import."
+    }
+  ],
+  "paths": {
+    "/associations": {
+      "get": {
+        "operationId": "listAssociations",
+        "summary": "Associations with their rulebooks",
+        "security": [],
+        "tags": [
+          "Associations"
+        ],
+        "description": "World and continental federations first, then national associations by short name.",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive match on name, short name and former names. Alias: `q`.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "description": "ISO 3166-1 alpha-2 country code, e.g. \"DE\".",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "description": "National associations, or continental and world federations.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "national",
+                "continental",
+                "world"
+              ]
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "description": "Language of the rulebook (\"en\" or \"de\").",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "de"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Associations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Association"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (100 requests per minute per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/associations/{id}": {
+      "get": {
+        "operationId": "getAssociation",
+        "summary": "One association",
+        "security": [],
+        "tags": [
+          "Associations"
+        ],
+        "description": "By id or a former name (\"world-bowling\" finds the IBF, \"etbf\" the EBF).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Association id, or one of its former names such as \"world-bowling\" or \"etbf\".",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The association.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Association"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown association.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (100 requests per minute per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rulebooks": {
+      "get": {
+        "operationId": "listRulebooks",
+        "summary": "Rulebooks",
+        "security": [],
+        "tags": [
+          "Rulebooks"
+        ],
+        "parameters": [
+          {
+            "name": "association",
+            "in": "query",
+            "required": false,
+            "description": "Association id (or former name). Repeat the parameter for several values.",
+            "schema": {
+              "default": [],
+              "maxItems": 50,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "description": "Language of the rulebook (\"en\" or \"de\").",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "de"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive match on the title. Alias: `q`.",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rulebooks with their current edition.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RulebookSummary"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (100 requests per minute per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rulebooks/{id}": {
+      "get": {
+        "operationId": "getRulebook",
+        "summary": "A rulebook with its table of contents",
+        "security": [],
+        "tags": [
+          "Rulebooks"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Rulebook id, e.g. \"usbc-playing-rules\".",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "edition",
+            "in": "query",
+            "required": false,
+            "description": "Edition id (see `/rulebooks/{id}/editions`). Default: the current edition.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,18}$"
+            }
+          },
+          {
+            "name": "maxLevel",
+            "in": "query",
+            "required": false,
+            "description": "Only rules down to this level (1 = top level), for a short table of contents.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The rulebook and its rules in document order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rulebook"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown rulebook or edition, or not imported yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (100 requests per minute per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rulebooks/{id}/editions": {
+      "get": {
+        "operationId": "listEditions",
+        "summary": "Editions of a rulebook",
+        "security": [],
+        "tags": [
+          "Rulebooks"
+        ],
+        "description": "Every version of the document imported so far, newest first.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Rulebook id, e.g. \"usbc-playing-rules\".",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Editions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Edition"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown rulebook.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (100 requests per minute per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rulebooks/{id}/rules/{key}": {
+      "get": {
+        "operationId": "getRule",
+        "summary": "One rule",
+        "security": [],
+        "tags": [
+          "Rulebooks"
+        ],
+        "description": "By key or by number as printed (\"Rule 4\", \"§ 12\", \"3.1.2\"). With the sections around it and the link to its page.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Rulebook id, e.g. \"usbc-playing-rules\".",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "description": "Rule key or number as printed: \"4\", \"Rule 4\", \"§ 12\", \"3.1.2\", \"chapter-3\".",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "edition",
+            "in": "query",
+            "required": false,
+            "description": "Edition id (see `/rulebooks/{id}/editions`). Default: the current edition.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,18}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown rulebook, edition or rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (100 requests per minute per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rules": {
+      "get": {
+        "operationId": "searchRules",
+        "summary": "Search rules",
+        "security": [],
+        "tags": [
+          "Search"
+        ],
+        "description": "Finds rules in the current editions by words (in titles, and in the rule texts through a search index; German and English stemming) or by number. Best match first: an exact number, then relevance.",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": true,
+            "description": "Words to find in rule titles and texts, or a rule number. Alias: `q`. Required.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "association",
+            "in": "query",
+            "required": false,
+            "description": "Association id (or former name). Repeat the parameter for several values.",
+            "schema": {
+              "default": [],
+              "maxItems": 50,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "name": "rulebook",
+            "in": "query",
+            "required": false,
+            "description": "Rulebook id. Repeat the parameter for several values.",
+            "schema": {
+              "default": [],
+              "maxItems": 50,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "description": "Language of the rulebook (\"en\" or \"de\").",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "de"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Zero-based page number.",
+            "schema": {
+              "default": 0,
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "description": "Page size (max 100).",
+            "schema": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of matches.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleHitPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameter.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (100 requests per minute per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Import status",
+        "security": [
+          {
+            "adminSecret": []
+          }
+        ],
+        "tags": [
+          "Operations"
+        ],
+        "description": "Needs `ADMIN_SECRET`.",
+        "responses": {
+          "200": {
+            "description": "Status.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong secret.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (100 requests per minute per IP).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database not set up yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotInitialized"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Association": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "short_name": {
+            "type": "string"
+          },
+          "country": {
+            "description": "ISO 3166-1 alpha-2, null for continental and world federations.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "national",
+              "continental",
+              "world"
+            ]
+          },
+          "website": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Former names and other ids it is found by."
+          },
+          "rulebooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RulebookSummary"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "short_name",
+          "country",
+          "scope",
+          "website",
+          "aliases",
+          "rulebooks"
+        ],
+        "additionalProperties": false
+      },
+      "AssociationRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "short_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "short_name"
+        ],
+        "additionalProperties": false
+      },
+      "RulebookSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "association_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "de"
+            ]
+          },
+          "page_url": {
+            "type": "string",
+            "description": "The association's page for the rulebook."
+          },
+          "edition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Edition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The current edition, null until the first import succeeded."
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Last import attempt."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "association_id",
+          "title",
+          "language",
+          "page_url",
+          "edition",
+          "checked_at"
+        ],
+        "additionalProperties": false
+      },
+      "RulebookRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "de"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "language"
+        ],
+        "additionalProperties": false
+      },
+      "Rulebook": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "association_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "en",
+              "de"
+            ]
+          },
+          "page_url": {
+            "type": "string",
+            "description": "The association's page for the rulebook."
+          },
+          "edition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Edition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The current edition, null until the first import succeeded."
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Last import attempt."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "association": {
+            "$ref": "#/components/schemas/AssociationRef"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Rule"
+            },
+            "description": "Table of contents in document order; `level` and `parent_key` give the tree."
+          }
+        },
+        "required": [
+          "id",
+          "association_id",
+          "title",
+          "language",
+          "page_url",
+          "edition",
+          "checked_at",
+          "association",
+          "rules"
+        ],
+        "additionalProperties": false
+      },
+      "Edition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Edition id (bigint as string)."
+          },
+          "label": {
+            "type": "string",
+            "description": "As the document states it (\"2026-2027\", \"01.07.2026\", \"Release 36\"), else the file date."
+          },
+          "document_url": {
+            "type": "string",
+            "description": "The official document this edition was read from."
+          },
+          "page_count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "rule_count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "structure": {
+            "type": "string",
+            "enum": [
+              "outline",
+              "headings"
+            ],
+            "description": "Read from the PDF bookmarks, or from the numbered headings in the text."
+          },
+          "fetched_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "When this edition was first imported."
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "document_url",
+          "page_count",
+          "rule_count",
+          "structure",
+          "fetched_at"
+        ],
+        "additionalProperties": false,
+        "description": "One version of a rulebook document."
+      },
+      "Rule": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Identifies the rule in its rulebook, e.g. \"4\", \"3.1.2\", \"chapter-3\"."
+          },
+          "number": {
+            "description": "As printed, e.g. \"Rule 4\", \"§ 12\", \"3.1.2\"; null for unnumbered sections.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "description": "The heading; null for numbered paragraphs without one of their own.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "level": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "1 = top level."
+          },
+          "parent_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Page in the document."
+          },
+          "link": {
+            "type": "string",
+            "description": "The official document opened at the page (`#page=`)."
+          }
+        },
+        "required": [
+          "key",
+          "number",
+          "title",
+          "level",
+          "parent_key",
+          "page",
+          "link"
+        ],
+        "additionalProperties": false,
+        "description": "A rule or section: where it is, not what it says."
+      },
+      "RuleDetail": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Identifies the rule in its rulebook, e.g. \"4\", \"3.1.2\", \"chapter-3\"."
+          },
+          "number": {
+            "description": "As printed, e.g. \"Rule 4\", \"§ 12\", \"3.1.2\"; null for unnumbered sections.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "description": "The heading; null for numbered paragraphs without one of their own.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "level": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "1 = top level."
+          },
+          "parent_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Page in the document."
+          },
+          "link": {
+            "type": "string",
+            "description": "The official document opened at the page (`#page=`)."
+          },
+          "rulebook": {
+            "$ref": "#/components/schemas/RulebookRef"
+          },
+          "association": {
+            "$ref": "#/components/schemas/AssociationRef"
+          },
+          "edition": {
+            "$ref": "#/components/schemas/Edition"
+          },
+          "breadcrumbs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Rule"
+            },
+            "description": "The enclosing sections, top level first."
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Rule"
+            }
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Rule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Rule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "number",
+          "title",
+          "level",
+          "parent_key",
+          "page",
+          "link",
+          "rulebook",
+          "association",
+          "edition",
+          "breadcrumbs",
+          "children",
+          "previous",
+          "next"
+        ],
+        "additionalProperties": false
+      },
+      "RuleHit": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Identifies the rule in its rulebook, e.g. \"4\", \"3.1.2\", \"chapter-3\"."
+          },
+          "number": {
+            "description": "As printed, e.g. \"Rule 4\", \"§ 12\", \"3.1.2\"; null for unnumbered sections.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "description": "The heading; null for numbered paragraphs without one of their own.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "level": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "1 = top level."
+          },
+          "parent_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Page in the document."
+          },
+          "link": {
+            "type": "string",
+            "description": "The official document opened at the page (`#page=`)."
+          },
+          "rulebook": {
+            "$ref": "#/components/schemas/RulebookRef"
+          },
+          "association": {
+            "$ref": "#/components/schemas/AssociationRef"
+          },
+          "edition": {
+            "type": "string",
+            "description": "Edition label."
+          },
+          "score": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "number",
+          "title",
+          "level",
+          "parent_key",
+          "page",
+          "link",
+          "rulebook",
+          "association",
+          "edition",
+          "score"
+        ],
+        "additionalProperties": false
+      },
+      "RuleHitPage": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuleHit"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "required": [
+          "content",
+          "page"
+        ],
+        "additionalProperties": false,
+        "description": "One page of search results, best first."
+      },
+      "PageMeta": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "size": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalElements": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "number",
+          "size",
+          "totalElements",
+          "totalPages"
+        ],
+        "additionalProperties": false
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "empty"
+            ],
+            "description": "`empty`: tables exist but no import has run yet."
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "associations": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rulebooks": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rulebooks_without_edition": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rules": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "associations",
+              "rulebooks",
+              "rulebooks_without_edition",
+              "rules"
+            ],
+            "additionalProperties": false
+          },
+          "failing": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                },
+                "checked_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "error",
+                "checked_at"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Rulebooks whose last import failed."
+          },
+          "lastImport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "counts",
+          "failing",
+          "lastImport"
+        ],
+        "additionalProperties": false
+      },
+      "ImportRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Run id (bigint as string)."
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "success",
+              "partial",
+              "failed"
+            ]
+          },
+          "trigger": {
+            "type": "string"
+          },
+          "stats": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {},
+            "description": "Per rulebook: status (unchanged, imported, failed, not_reached), url, edition, rules."
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "started_at",
+          "finished_at",
+          "status",
+          "trigger",
+          "stats",
+          "errors"
+        ],
+        "additionalProperties": false
+      },
+      "NotInitialized": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "not_initialized"
+          },
+          "hint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "hint"
+        ],
+        "additionalProperties": false,
+        "description": "The database has no tables yet; run the import once."
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "adminSecret": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "`ADMIN_SECRET`"
+      }
+    }
+  }
+}

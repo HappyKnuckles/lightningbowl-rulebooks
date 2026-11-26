@@ -119,12 +119,16 @@ export async function findAssociations(filters: { search?: string; country?: str
   const where = ['a.removed_at IS NULL'];
   if (filters.search) {
     const pattern = params.add(`%${escapeLike(filters.search)}%`);
-    where.push(`(a.name ILIKE ${pattern} OR a.short_name ILIKE ${pattern} OR a.id ILIKE ${pattern} OR array_to_string(a.aliases, ' ') ILIKE ${pattern})`);
+    where.push(
+      `(a.name ILIKE ${pattern} OR a.short_name ILIKE ${pattern} OR a.id ILIKE ${pattern} OR array_to_string(a.aliases, ' ') ILIKE ${pattern})`,
+    );
   }
   if (filters.country) where.push(`a.country = ${params.add(filters.country)}`);
   if (filters.scope) where.push(`a.scope = ${params.add(filters.scope)}`);
   if (filters.language) {
-    where.push(`EXISTS (SELECT 1 FROM rulebooks r WHERE r.association_id = a.id AND r.removed_at IS NULL AND r.language = ${params.add(filters.language)})`);
+    where.push(
+      `EXISTS (SELECT 1 FROM rulebooks r WHERE r.association_id = a.id AND r.removed_at IS NULL AND r.language = ${params.add(filters.language)})`,
+    );
   }
   const { rows } = await query<AssociationRow>(
     `SELECT id, name, short_name, country, scope, website, aliases FROM associations a WHERE ${where.join(' AND ')}
@@ -178,7 +182,16 @@ async function rulebookContext(id: string, editionId?: string): Promise<Rulebook
     throw new NotFoundError(editionId ? `Rulebook "${id}" has no edition ${editionId}` : `Rulebook "${id}" has not been imported yet`);
   }
   // `edition` on the summary is always the current one
-  const current = editionId ? toRulebookSummary((await query<RulebookRow>(`SELECT ${RULEBOOK_COLUMNS} FROM rulebooks r LEFT JOIN editions e ON e.id = r.current_edition_id WHERE r.id = $1`, [id])).rows[0]!) : summary;
+  const current = editionId
+    ? toRulebookSummary(
+        (
+          await query<RulebookRow>(
+            `SELECT ${RULEBOOK_COLUMNS} FROM rulebooks r LEFT JOIN editions e ON e.id = r.current_edition_id WHERE r.id = $1`,
+            [id],
+          )
+        ).rows[0]!,
+      )
+    : summary;
   return { summary: current, association: { id: row.association_id, name: row.a_name, short_name: row.a_short_name }, edition: summary.edition };
 }
 
@@ -203,7 +216,10 @@ export async function getEditions(id: string): Promise<Edition[]> {
     // a rulebook without editions yet has an empty history, not a 404
     if (!(error instanceof NotFoundError) || error.message.startsWith('Unknown')) throw error;
   });
-  const { rows } = await query<EditionRow>(`SELECT ${EDITION_COLUMNS} FROM editions e WHERE e.rulebook_id = $1 ORDER BY e.fetched_at DESC, e.id DESC`, [id]);
+  const { rows } = await query<EditionRow>(
+    `SELECT ${EDITION_COLUMNS} FROM editions e WHERE e.rulebook_id = $1 ORDER BY e.fetched_at DESC, e.id DESC`,
+    [id],
+  );
   return rows.map((row) => toEdition(row)!);
 }
 
@@ -216,7 +232,11 @@ export async function getRule(id: string, key: string, options: { edition?: stri
   const row = rows[index]!;
   const byKey = new Map(rows.map((r) => [r.key, r]));
   const breadcrumbs: RuleRow[] = [];
-  for (let parent = row.parent_key ? byKey.get(row.parent_key) : undefined; parent; parent = parent.parent_key ? byKey.get(parent.parent_key) : undefined) {
+  for (
+    let parent = row.parent_key ? byKey.get(row.parent_key) : undefined;
+    parent;
+    parent = parent.parent_key ? byKey.get(parent.parent_key) : undefined
+  ) {
     breadcrumbs.unshift(parent);
   }
   const url = context.edition.document_url;

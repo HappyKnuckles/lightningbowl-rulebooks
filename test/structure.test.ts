@@ -9,13 +9,21 @@ const body = (text = 'The quick brown fox jumps over the lazy dog and keeps runn
 
 const content = (pages: Line[][], outline: PdfContent['outline'] = []): PdfContent => ({ pageCount: pages.length, outline, pages, title: null });
 
-const summary = (rules: ReturnType<typeof extractStructure>['rules']) => rules.map((r) => `${'  '.repeat(r.level - 1)}${r.key}|${r.number ?? ''}|${r.title ?? '—'}|p${r.page}`);
+const summary = (rules: ReturnType<typeof extractStructure>['rules']) =>
+  rules.map((r) => `${'  '.repeat(r.level - 1)}${r.key}|${r.number ?? ''}|${r.title ?? '—'}|p${r.page}`);
 
 test('reads chapters, rules and lettered sub-rules with levels, parents and keys', () => {
   const { source, rules } = extractStructure(
     content([
       [line('Chapter 2 General Playing Rules', { size: 14 }), line('Rule 1 – Certification'), body(), body(), line('Rule 2 The Game'), body()],
-      [line('2a. Definition'), body('A game of tenpins consists of ten frames, delivered by each player in turn.'), line('2b How Scored'), body(), body(), body()],
+      [
+        line('2a. Definition'),
+        body('A game of tenpins consists of ten frames, delivered by each player in turn.'),
+        line('2b How Scored'),
+        body(),
+        body(),
+        body(),
+      ],
     ]),
   );
   assert.equal(source, 'headings');
@@ -57,9 +65,26 @@ test('keeps numbered paragraphs without their text, and labels before a colon', 
 
 test('takes the heading printed above a rule number', () => {
   const { rules } = extractStructure(
-    content([[body(), body(), line('Downward Average Adjustments', { size: 11 }), line('Rule 4e. Relief of an average, due to injury, may be granted by the office', { full: true }), body(), body()]]),
+    content([
+      [
+        body(),
+        body(),
+        line('Downward Average Adjustments', { size: 11 }),
+        line('Rule 4e. Relief of an average, due to injury, may be granted by the office', { full: true }),
+        body(),
+        line('Game - Definition', { size: 11 }),
+        line('Rule 2a*. A game of tenpins consists of ten frames. A player delivers two balls', { full: true }),
+        body(),
+      ],
+    ]),
   );
-  assert.deepEqual(rules.map((r) => [r.number, r.title]), [['Rule 4e', 'Downward Average Adjustments']]);
+  assert.deepEqual(
+    rules.map((r) => [r.key, r.number, r.title]),
+    [
+      ['4e', 'Rule 4e', 'Downward Average Adjustments'],
+      ['2a', 'Rule 2a', 'Game - Definition'],
+    ],
+  );
 });
 
 test('skips tables of contents, with and without page numbers', () => {
@@ -93,7 +118,12 @@ test('plain-number chapters count only when printed larger', () => {
 
 test('leaves running headers and footers out of the text under a heading', () => {
   const topics = ['pins', 'lanes', 'balls', 'fouls'];
-  const page = (n: number) => [line('DBU Sportordnung Stand 01.07.2026'), line(`${n}.1 Heading ${n}`), body(`A paragraph about ${topics[n - 1]}, long enough to fill the line.`), line(`Seite ${n}`)];
+  const page = (n: number) => [
+    line('DBU Sportordnung Stand 01.07.2026'),
+    line(`${n}.1 Heading ${n}`),
+    body(`A paragraph about ${topics[n - 1]}, long enough to fill the line.`),
+    line(`Seite ${n}`),
+  ];
   const { rules } = extractStructure(content([page(1), page(2), page(3), page(4)]));
   assert.equal(rules.length, 4);
   assert.equal(rules[1]!.body, 'A paragraph about lanes, long enough to fill the line.');
@@ -102,7 +132,13 @@ test('leaves running headers and footers out of the text under a heading', () =>
 test('uses bookmarks, adds the numbered paragraphs they lack, and drops ones that are not sections', () => {
   const pages = [
     [line('Contents')],
-    [line('CHAPTER 1'), line('2. Universal playing rules', { size: 14 }), line('2.1 Game definitions'), line('2.1.1 A game consists of ten frames for each player.'), body()],
+    [
+      line('CHAPTER 1'),
+      line('2. Universal playing rules', { size: 14 }),
+      line('2.1 Game definitions'),
+      line('2.1.1 A game consists of ten frames for each player.'),
+      body(),
+    ],
     [line('2.1.2 A strike is made when all ten pins fall with the first ball.'), body(), line('2.2 Style of play'), body(), body()],
   ];
   const { source, rules } = extractStructure(

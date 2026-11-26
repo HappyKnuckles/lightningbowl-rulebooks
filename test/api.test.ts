@@ -35,19 +35,28 @@ const importNow = async (options: Parameters<typeof runImport>[0] = {}) =>
 test('imports each rulebook as an edition with its rules, and skips unchanged documents', async () => {
   const first = await importNow();
   assert.equal(first.status, 'success');
-  assert.deepEqual(first.stats['usbc-playing-rules'], { status: 'imported', url: `${BASE}/usbc-playing-rules.pdf`, edition: '2026-2027', rules: 7, structure: 'headings' });
+  assert.deepEqual(first.stats['usbc-playing-rules'], {
+    status: 'imported',
+    url: `${BASE}/usbc-playing-rules.pdf`,
+    edition: '2026-2027',
+    rules: 7,
+    structure: 'headings',
+  });
   // found on the official page, not the fallback URL
   assert.equal((first.stats['dbu-sportordnung'] as { url: string }).url, `${BASE}/files/DBU-Sportordnung.pdf`);
   assert.equal((first.stats['dbu-sportordnung'] as { edition: string }).edition, '01.07.2026');
 
   const second = await importNow();
   assert.equal((second.stats['usbc-playing-rules'] as { status: string }).status, 'unchanged');
-  assert.equal((await query('SELECT count(*)::int AS n FROM editions')).rows[0].n, 2);
+  assert.equal((await query('SELECT count(*)::int AS n FROM editions')).rows[0]!.n, 2);
 });
 
 test('a changed document becomes the current edition; a failing one keeps it', async () => {
   await importNow();
-  routes[`${BASE}/files/DBU-Sportordnung.pdf`] = await makePdf([['Sportordnung', 'Stand: 01.01.2027'], ['7.1 Spielweisen', 'Einzel, Doppel und Mannschaft werden in Serien gespielt und gewertet.']]);
+  routes[`${BASE}/files/DBU-Sportordnung.pdf`] = await makePdf([
+    ['Sportordnung', 'Stand: 01.01.2027'],
+    ['7.1 Spielweisen', 'Einzel, Doppel und Mannschaft werden in Serien gespielt und gewertet.'],
+  ]);
   const run = await importNow();
   assert.equal((run.stats['dbu-sportordnung'] as { edition: string }).edition, '01.01.2027');
   const history = await call(editions, { id: 'dbu-sportordnung' });

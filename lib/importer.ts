@@ -87,7 +87,9 @@ export async function runImport({
       try {
         stats[rulebook.id] = await importRulebook(rulebook, { force, fetchFn });
         const result = stats[rulebook.id]!;
-        log(`${rulebook.id}: ${result.status}${result.rules !== undefined ? `, ${result.rules} rules` : ''}${result.warning ? ` (${result.warning})` : ''}`);
+        log(
+          `${rulebook.id}: ${result.status}${result.rules !== undefined ? `, ${result.rules} rules` : ''}${result.warning ? ` (${result.warning})` : ''}`,
+        );
       } catch (error) {
         const message = (error as Error).message;
         stats[rulebook.id] = { status: 'failed' };
@@ -149,7 +151,14 @@ async function importRulebook(source: RulebookSource, { force, fetchFn }: { forc
   if (existing && !force) {
     // the same document as before (or as an older edition the association went back to)
     await query('UPDATE rulebooks SET current_edition_id = $2, checked_at = now(), check_error = NULL WHERE id = $1', [source.id, existing.id]);
-    return { status: 'unchanged', url, edition: existing.label, rules: existing.rule_count, structure: existing.structure, ...(warning ? { warning } : {}) };
+    return {
+      status: 'unchanged',
+      url,
+      edition: existing.label,
+      rules: existing.rule_count,
+      structure: existing.structure,
+      ...(warning ? { warning } : {}),
+    };
   }
 
   const content = await readPdf(document.bytes);
@@ -159,7 +168,8 @@ async function importRulebook(source: RulebookSource, { force, fetchFn }: { forc
   const config = SEARCH_CONFIG[source.language];
 
   await withTransaction(async (client) => {
-    if (existing) await client.query('UPDATE rulebooks SET current_edition_id = NULL WHERE id = $1 AND current_edition_id = $2', [source.id, existing.id]);
+    if (existing)
+      await client.query('UPDATE rulebooks SET current_edition_id = NULL WHERE id = $1 AND current_edition_id = $2', [source.id, existing.id]);
     if (existing) await client.query('DELETE FROM editions WHERE id = $1', [existing.id]);
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO editions (rulebook_id, label, document_url, sha256, page_count, rule_count, structure)

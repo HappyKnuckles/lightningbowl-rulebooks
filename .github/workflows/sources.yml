@@ -4,8 +4,6 @@
 name: Sources
 
 on:
-  push:
-    branches: ['**']
   pull_request:
   workflow_dispatch:
   schedule:
@@ -28,5 +26,3 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check-sources -- ${{ matrix.association }} --annotate
-        env:
-          LINES: ctf-playing-rules:10,11
