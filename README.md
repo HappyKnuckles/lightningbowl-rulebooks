@@ -89,7 +89,14 @@ A rule looks like this:
 3. **Run the first import.** Go to Vercel → project → **Settings → Cron Jobs** → **Run** next to `/api/cron/import`. It creates the tables and imports every rulebook, which takes about a minute. After that it runs weekly on its own.
 4. **Check it** with `curl -H "Authorization: Bearer $ADMIN_SECRET" https://<host>/api/health`. `counts.rulebooks_without_edition` should be 0 and `failing` empty.
 
-**Local development:** copy `.env.example` to `.env.local`, then:
+**Trying it without deploying:** `npm install && npm run local`. This needs neither Vercel nor Neon nor Docker.
+
+- **Database:** it starts a Postgres kept in `.local-db/`.
+- **Import:** on the first start it downloads and imports every rulebook, which takes about a minute. `npm run local -- --import` checks all of them again later.
+- **Serving:** it then serves the API at http://localhost:3004, with docs at `/api/docs`. `/api/health` takes `Authorization: Bearer local`.
+- **Reset:** delete `.local-db/` to start over.
+
+**Local development against Neon (or any Postgres):** copy `.env.example` to `.env.local`, then:
 
 - `npm install`
 - `npm run import` (also migrates). Takes rulebook or association ids to import only those, and `--force` to re-read unchanged documents after improving the extraction.

@@ -4,6 +4,7 @@
   "description": "Rulebook API for Lightning Bowl: the structure of bowling associations' rulebooks (rule numbers, titles, pages) with links to the official documents",
   "scripts": {
     "dev": "tsx dev-server.ts",
+    "local": "tsx scripts/local.ts",
     "typecheck": "tsc --noEmit",
     "migrate": "tsx scripts/migrate.ts",
     "import": "tsx scripts/import.ts",
