@@ -1,0 +1,34 @@
+{
+  "name": "lightningbowl-rulebooks",
+  "version": "1.0.0",
+  "description": "Rulebook API for Lightning Bowl: the structure of bowling associations' rulebooks (rule numbers, titles, pages) with links to the official documents",
+  "scripts": {
+    "dev": "tsx dev-server.ts",
+    "local": "tsx scripts/local.ts",
+    "typecheck": "tsc --noEmit",
+    "migrate": "tsx scripts/migrate.ts",
+    "import": "tsx scripts/import.ts",
+    "check-sources": "tsx scripts/check-sources.ts",
+    "openapi": "tsx scripts/openapi.ts",
+    "test": "node --import tsx --test --test-concurrency=1 \"test/**/*.test.ts\""
+  },
+  "license": "ISC",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "dependencies": {
+    "pg": "^8.23.1",
+    "unpdf": "^2.2.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.7",
+    "@types/pg": "^8.23.1",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "pdf-lib": "^1.17.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
