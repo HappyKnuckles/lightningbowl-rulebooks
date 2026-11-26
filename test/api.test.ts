@@ -192,6 +192,17 @@ test('searches rule titles, the rule texts and numbers, with stemming per langua
   assert.equal((await call(rules)).statusCode, 400);
 });
 
+test('answers 503 instead of failing before the first import created the tables', async () => {
+  await query('ALTER TABLE associations RENAME TO associations_hidden');
+  try {
+    const res = await call(associations);
+    assert.equal(res.statusCode, 503);
+    assert.match(res.body.error, /No rulebooks imported yet/);
+  } finally {
+    await query('ALTER TABLE associations_hidden RENAME TO associations');
+  }
+});
+
 test('health and the cron endpoint need their secrets', async () => {
   assert.equal((await call(health)).statusCode, 401);
   assert.equal((await call(cron)).statusCode, 401);

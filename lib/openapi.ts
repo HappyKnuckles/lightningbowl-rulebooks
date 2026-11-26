@@ -59,6 +59,7 @@ const errors = {
   '400': json(ref(ApiError), 'Invalid parameter.'),
   '429': json(ref(ApiError), 'Rate limit exceeded (100 requests per minute per IP).'),
   '500': json(ref(ApiError), 'Server error.'),
+  '503': json(ref(ApiError), 'No rulebooks imported yet (before the first import).'),
 };
 const notFound = (what: string) => ({ '404': json(ref(ApiError), what) });
 

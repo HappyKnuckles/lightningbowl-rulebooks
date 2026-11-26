@@ -136,6 +136,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "No rulebooks imported yet (before the first import).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -205,6 +215,16 @@
           },
           "500": {
             "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No rulebooks imported yet (before the first import).",
             "content": {
               "application/json": {
                 "schema": {
@@ -309,6 +329,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "No rulebooks imported yet (before the first import).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -405,6 +435,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "No rulebooks imported yet (before the first import).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -477,6 +517,16 @@
           },
           "500": {
             "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No rulebooks imported yet (before the first import).",
             "content": {
               "application/json": {
                 "schema": {
@@ -574,6 +624,16 @@
           },
           "500": {
             "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No rulebooks imported yet (before the first import).",
             "content": {
               "application/json": {
                 "schema": {
@@ -711,6 +771,16 @@
           },
           "500": {
             "description": "Server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No rulebooks imported yet (before the first import).",
             "content": {
               "application/json": {
                 "schema": {

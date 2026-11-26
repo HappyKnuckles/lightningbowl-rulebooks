@@ -14,6 +14,10 @@ export function withErrorHandling(handler: Handler): Handler {
     } catch (error) {
       if (error instanceof BadRequestError) return res.status(400).json({ error: error.message });
       if (error instanceof NotFoundError) return res.status(404).json({ error: error.message });
+      // undefined_table: the first import (which creates the tables) hasn't run yet
+      if ((error as { code?: string }).code === '42P01') {
+        return res.status(503).json({ error: 'No rulebooks imported yet. Run the import once (Vercel → Settings → Cron Jobs).' });
+      }
       console.error('Handler error:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
